@@ -11,17 +11,13 @@ npm install @nzmedet/voice-sdk
 ### Initialization
 
 ```typescript
-import { VoiceSDK } from '@nzmedet/voice-sdk';
+import { VoiceSDK, VoiceSDKProvider } from '@nzmedet/voice-sdk';
 
-VoiceSDK.init({
-  firebaseConfig: {
-    apiKey: 'your-api-key',
-    authDomain: 'your-auth-domain',
-    projectId: 'your-project-id',
-    storageBucket: 'your-storage-bucket',
-    messagingSenderId: 'your-sender-id',
-    appId: 'your-app-id',
-  },
+// Initialize Firebase first via @react-native-firebase/app
+// initializeApp();
+
+// Initialize the SDK
+await VoiceSDK.init({
   appName: 'MyApp',
   turnServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -53,6 +49,41 @@ VoiceSDK.init({
   },
 });
 ```
+
+### Wrap App with VoiceSDKProvider
+
+**Required:** The SDK uses React Context to provide functionality to hooks. You must wrap your app with `VoiceSDKProvider`:
+
+```typescript
+import React from 'react';
+import { VoiceSDK, VoiceSDKProvider } from '@nzmedet/voice-sdk';
+
+function App() {
+  const [initialized, setInitialized] = React.useState(false);
+
+  React.useEffect(() => {
+    VoiceSDK.init({
+      appName: 'MyApp',
+      turnServers: [/* ... */],
+      callbacks: { /* ... */ },
+    })
+      .then(() => setInitialized(true))
+      .catch((error) => console.error('Initialization failed:', error));
+  }, []);
+
+  if (!initialized) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <VoiceSDKProvider value={VoiceSDK.getContextValue()}>
+      <YourAppContent />
+    </VoiceSDKProvider>
+  );
+}
+```
+
+**Why Context?** The SDK uses React Context instead of global variables for better React patterns, type safety, and testability. The `useCall()` and `useIncomingCall()` hooks require this provider.
 
 ### Enable Debug Mode
 
@@ -108,7 +139,7 @@ const {
 
 ### `useIncomingCall()`
 
-Hook for managing incoming calls.
+Hook for managing incoming calls. Must be used within a `VoiceSDKProvider`.
 
 ```typescript
 const {
@@ -184,34 +215,52 @@ interface IncomingCall {
 }
 ```
 
+## Context API
+
+### `VoiceSDKProvider`
+
+React Context Provider that supplies the SDK instance to hooks.
+
+**Props:**
+- `value: VoiceSDKContextValue` - The context value obtained from `VoiceSDK.getContextValue()`
+
+**Usage:**
+```typescript
+<VoiceSDKProvider value={VoiceSDK.getContextValue()}>
+  <YourApp />
+</VoiceSDKProvider>
+```
+
+### `useVoiceSDKContext()`
+
+Hook to access the VoiceSDK context directly (usually not needed - use `useCall()` and `useIncomingCall()` instead).
+
+```typescript
+const voiceSDK = useVoiceSDKContext();
+// Access: voiceSDK.config, voiceSDK.instance, voiceSDK.setIncomingCallHandler, voiceSDK.getCallMetadata
+```
+
 ## UI Components
 
 ### `IncomingCallScreen`
 
-Pre-built screen component for displaying incoming calls.
+Pre-built screen component for displaying incoming calls. Must be used within a `VoiceSDKProvider`.
 
 ```typescript
 import { IncomingCallScreen } from 'voice-sdk';
 
-<IncomingCallScreen
-  route={{
-    params: {
-      callId: 'call-123',
-    },
-  }}
-/>
+// No props needed - component gets all data from useIncomingCall hook
+<IncomingCallScreen />
 ```
 
 ### `ActiveCallScreen`
 
-Pre-built screen component for displaying active calls.
+Pre-built screen component for displaying active calls. Must be used within a `VoiceSDKProvider`.
 
 ```typescript
 import { ActiveCallScreen } from 'voice-sdk';
 
-<ActiveCallScreen
-  participantName="John Doe"
-/>
+<ActiveCallScreen />
 ```
 
 ## Example
@@ -219,24 +268,11 @@ import { ActiveCallScreen } from 'voice-sdk';
 ### Complete Example App
 
 ```tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Button, Text } from 'react-native';
-import { VoiceSDK, useCall, useIncomingCall } from 'voice-sdk';
+import { VoiceSDK, VoiceSDKProvider, useCall, useIncomingCall } from 'voice-sdk';
 
-// Initialize once in your app
-VoiceSDK.init({
-  firebaseConfig: {
-    apiKey: 'your-api-key',
-    authDomain: 'your-auth-domain',
-    projectId: 'your-project-id',
-    storageBucket: 'your-storage-bucket',
-    messagingSenderId: 'your-sender-id',
-    appId: 'your-app-id',
-  },
-  appName: 'MyApp',
-});
-
-export default function App() {
+function AppContent() {
   const { startCall, endCall, callState, isConnected } = useCall();
   const { incomingCall, answer, decline } = useIncomingCall();
 
@@ -256,6 +292,32 @@ export default function App() {
         </View>
       )}
     </View>
+  );
+}
+
+export default function App() {
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    // Initialize Firebase first via @react-native-firebase/app
+    // initializeApp();
+
+    VoiceSDK.init({
+      appName: 'MyApp',
+      turnServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    })
+      .then(() => setInitialized(true))
+      .catch((error) => console.error('Initialization failed:', error));
+  }, []);
+
+  if (!initialized) {
+    return <View><Text>Initializing...</Text></View>;
+  }
+
+  return (
+    <VoiceSDKProvider value={VoiceSDK.getContextValue()}>
+      <AppContent />
+    </VoiceSDKProvider>
   );
 }
 ```

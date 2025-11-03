@@ -2,6 +2,10 @@
 
 Production-grade WebRTC voice calling SDK for React Native with Firebase signaling, CallKeep UI, VoIP push, metered billing, and auto-reconnect.
 
+## ⚠️ Breaking Change: Context Provider Required
+
+**As of v1.0.6+, the SDK uses React Context instead of global variables.** You must wrap your app with `VoiceSDKProvider` after initialization. See the [Setup](#setup) section below for details.
+
 ## Installation
 
 ```bash
@@ -21,10 +25,12 @@ npm install react react-native @react-native-firebase/app @react-native-firebase
 ### 1. Initialize the SDK
 
 ```typescript
-import { VoiceSDK } from 'voice-sdk';
-// initialise @react-native-firebase
-// initialiseApp
-VoiceSDK.init({
+import { VoiceSDK, VoiceSDKProvider } from 'voice-sdk';
+// Initialize @react-native-firebase/app first
+// initializeApp();
+
+// Initialize the SDK
+await VoiceSDK.init({
   appName: 'MyApp',
   turnServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -54,13 +60,53 @@ VoiceSDK.init({
 });
 ```
 
-### 2. Enable Debug Mode (Optional)
+### 2. Wrap Your App with VoiceSDKProvider
+
+**Important:** The SDK uses React Context to provide functionality to hooks. You must wrap your app with `VoiceSDKProvider` after initialization:
+
+```typescript
+import React from 'react';
+import { VoiceSDK, VoiceSDKProvider } from 'voice-sdk';
+
+function App() {
+  const [initialized, setInitialized] = React.useState(false);
+
+  React.useEffect(() => {
+    VoiceSDK.init({
+      appName: 'MyApp',
+      turnServers: [/* ... */],
+    })
+      .then(() => {
+        setInitialized(true);
+        VoiceSDK.enableDebugMode(); // Optional
+      })
+      .catch((error) => {
+        console.error('Failed to initialize VoiceSDK:', error);
+      });
+  }, []);
+
+  if (!initialized) {
+    return <LoadingScreen />;
+  }
+
+  // Wrap your app with VoiceSDKProvider
+  return (
+    <VoiceSDKProvider value={VoiceSDK.getContextValue()}>
+      <YourAppContent />
+    </VoiceSDKProvider>
+  );
+}
+```
+
+**Why?** The SDK uses React Context instead of global variables for better React patterns, type safety, and testability. The `useCall()` and `useIncomingCall()` hooks require this provider to function.
+
+### 3. Enable Debug Mode (Optional)
 
 ```typescript
 VoiceSDK.enableDebugMode();
 ```
 
-### 3. Token Management
+### 4. Token Management
 
 The SDK automatically handles VoIP push token registration (iOS) and FCM token registration (Android). Tokens are automatically received and passed to your `onTokenUpdate` callback, where you should store them in your database.
 
@@ -68,10 +114,13 @@ The SDK automatically handles VoIP push token registration (iOS) and FCM token r
 
 ### Starting a Call
 
+**Note:** Components using hooks must be within a `VoiceSDKProvider`.
+
 ```typescript
 import { useCall } from 'voice-sdk';
 
 function MyComponent() {
+  // This component must be rendered within <VoiceSDKProvider>
   const { startCall, callState, isConnected, endCall } = useCall();
 
   const handleCall = async () => {
@@ -95,10 +144,13 @@ function MyComponent() {
 
 ### Handling Incoming Calls
 
+**Note:** Components using hooks must be within a `VoiceSDKProvider`.
+
 ```typescript
 import { useIncomingCall } from 'voice-sdk';
 
 function IncomingCallComponent() {
+  // This component must be rendered within <VoiceSDKProvider>
   const { incomingCall, answer, decline, getCallMetadata } = useIncomingCall();
 
   if (incomingCall) {

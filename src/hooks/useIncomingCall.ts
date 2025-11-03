@@ -1,29 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import auth from '@react-native-firebase/auth';
-// Removed Firestore imports - hooks no longer manage call state in Firestore
 // Developers should handle call state in their own database via callbacks
 import { CallEngine } from '../core/CallEngine';
 import { SignalingManager } from '../core/SignalingManager';
 import { CallKeepManager } from '../callkeep/CallKeepManager';
-import { IncomingCall, SignalingMessage, CallId, CallState, UserId } from '../core/types';
+import { IncomingCall, SignalingMessage, CallId, UserId } from '../core/types';
 import { logger } from '../utils/logger';
 import type { VoIPPushPayload } from '../voip/VoIPPushIOS';
 import type { FCMPushPayload } from '../voip/FCMPushAndroid';
-import type { RTCSessionDescriptionInit, MediaStream, RTCIceServer } from '../core/webrtc-types';
+import type { RTCSessionDescriptionInit, MediaStream } from '../core/webrtc-types';
 import type { CallMetadata } from '../index';
+import { useVoiceSDKContext } from '../context/VoiceSDKContext';
 import '../core/webrtc-types'; // Import for global type declarations
-
-// Shared interface for accessing VoiceSDK instance
-interface GlobalVoiceSDK {
-  VoiceSDK?: {
-    instance?: {
-      notifyCallStateChanged: (callId: CallId, state: CallState) => Promise<void>;
-      notifyCallEnded: (callId: CallId, startTime: number, endTime: number, participants: [UserId, UserId]) => Promise<void>;
-    };
-    config?: { turnServers?: RTCIceServer[] };
-    getCallMetadata?: (callId: CallId) => CallMetadata | undefined;
-  };
-}
 
 export interface UseIncomingCallReturn {
   incomingCall: IncomingCall | null;
@@ -52,6 +40,7 @@ interface IncomingCallMetadata {
 export function useIncomingCall(
   onIncomingCall?: (call: IncomingCall) => void
 ): UseIncomingCallReturn {
+  const voiceSDK = useVoiceSDKContext();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
 
@@ -91,7 +80,6 @@ export function useIncomingCall(
         callId: payload.callId,
         caller: payload.caller,
         callee: payload.callee,
-        metadata: payload.metadata,
       };
 
       setIncomingCall(call);
@@ -106,22 +94,12 @@ export function useIncomingCall(
     };
 
     // Register handler with VoiceSDK
-    interface GlobalVoiceSDK {
-      VoiceSDK?: {
-        setIncomingCallHandler?: (handler: ((payload: VoIPPushPayload | FCMPushPayload) => void) | undefined) => void;
-      };
-    }
-    const globalSDK = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-    if (globalSDK) {
-      globalSDK.setIncomingCallHandler?.(handler);
-    }
+    voiceSDK.setIncomingCallHandler(handler);
 
     return () => {
-      if (globalSDK) {
-        globalSDK.setIncomingCallHandler?.(undefined);
-      }
+      voiceSDK.setIncomingCallHandler(undefined);
     };
-  }, [onIncomingCall]);
+  }, [onIncomingCall, voiceSDK]);
 
   const answer = useCallback(async () => {
     if (!incomingCall) {
@@ -144,8 +122,7 @@ export function useIncomingCall(
       }
 
       // Notify SDK about call state changes
-      const voiceSDK = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-      if (voiceSDK?.instance) {
+      if (voiceSDK.instance) {
         try {
           await voiceSDK.instance.notifyCallStateChanged(callId, 'connecting');
         } catch (err) {
@@ -165,7 +142,7 @@ export function useIncomingCall(
       }
 
       // Initialize call engine
-      const config = voiceSDK?.config;
+      const config = voiceSDK.config;
       let engine: CallEngine;
       try {
         engine = new CallEngine(callId, 'callee', config?.turnServers);
@@ -338,14 +315,13 @@ export function useIncomingCall(
 
       // Notify SDK about call declined/ended with proper metadata
       const metadata = callMetadataRef.current;
-      const voiceSDKDecline = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-      if (voiceSDKDecline?.instance && metadata) {
+      if (voiceSDK.instance && metadata) {
         try {
-          await voiceSDKDecline.instance.notifyCallStateChanged(callId, 'ended');
+          await voiceSDK.instance.notifyCallStateChanged(callId, 'ended');
           const endTime = Date.now();
           const calleeId = auth().currentUser?.uid || '';
           // Use callerId from metadata (stored when call was received)
-          await voiceSDKDecline.instance.notifyCallEnded(
+          await voiceSDK.instance.notifyCallEnded(
             callId,
             metadata.startTime,
             endTime,
@@ -436,16 +412,12 @@ export function useIncomingCall(
 
       callMetadataRef.current = undefined;
     };
-  }, []);
+  }, [voiceSDK]);
 
   // Get call metadata function
   const getCallMetadata = useCallback((callId: CallId): CallMetadata | undefined => {
-    const globalSDK = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-    if (globalSDK?.getCallMetadata) {
-      return globalSDK.getCallMetadata(callId);
-    }
-    return undefined;
-  }, []);
+    return voiceSDK.getCallMetadata(callId);
+  }, [voiceSDK]);
 
   return {
     incomingCall,

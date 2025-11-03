@@ -9,8 +9,6 @@ export interface FCMPushPayload {
   callId: string;
   caller: CallParticipant;
   callee?: CallParticipant; // Current user receiving the call (will be auto-populated if not provided)
-  // Additional metadata from backend can be stored here
-  metadata?: Record<string, unknown>;
 }
 
 export class FCMPushAndroid {
@@ -58,99 +56,14 @@ export class FCMPushAndroid {
         const messageData = remoteMessage.data;
         if (messageData?.callId) {
           if (this.incomingCallCallback) {
-            const callId = String(messageData.callId);
-            
-            // Extract caller - must be an object or JSON string with id, displayName, photoURL
-            let caller: CallParticipant;
-            if (messageData.caller && typeof messageData.caller === 'string') {
-              // JSON string - parse it
-              try {
-                const callerObj = JSON.parse(messageData.caller) as Record<string, unknown>;
-                caller = {
-                  id: String(callerObj.id || ''),
-                  displayName: String(callerObj.displayName || 'Unknown'),
-                  photoURL: callerObj.photoURL ? String(callerObj.photoURL) : undefined,
-                  ...Object.keys(callerObj).reduce((acc, key) => {
-                    if (!['id', 'displayName', 'photoURL'].includes(key)) {
-                      acc[key] = callerObj[key];
-                    }
-                    return acc;
-                  }, {} as Record<string, unknown>),
-                };
-              } catch (error) {
-                logger.error('Failed to parse caller JSON in FCM payload:', error);
-                return;
-              }
-            } else if (messageData.caller && typeof messageData.caller === 'object' && !Array.isArray(messageData.caller)) {
-              // Direct object
-              const callerObj = messageData.caller as Record<string, unknown>;
-              caller = {
-                id: String(callerObj.id || ''),
-                displayName: String(callerObj.displayName || 'Unknown'),
-                photoURL: callerObj.photoURL ? String(callerObj.photoURL) : undefined,
-                ...Object.keys(callerObj).reduce((acc, key) => {
-                  if (!['id', 'displayName', 'photoURL'].includes(key)) {
-                    acc[key] = callerObj[key];
-                  }
-                  return acc;
-                }, {} as Record<string, unknown>),
-              };
-            } else {
-              logger.error('Invalid caller in FCM payload - must be object or JSON string');
-              return;
-            }
-            
-            // Extract callee - optional, must be an object or JSON string if provided
-            let callee: CallParticipant | undefined;
-            if (messageData.callee) {
-              if (typeof messageData.callee === 'string') {
-                // JSON string - parse it
-                try {
-                  const calleeObj = JSON.parse(messageData.callee) as Record<string, unknown>;
-                  callee = {
-                    id: String(calleeObj.id || ''),
-                    displayName: String(calleeObj.displayName || 'Unknown'),
-                    photoURL: calleeObj.photoURL ? String(calleeObj.photoURL) : undefined,
-                    ...Object.keys(calleeObj).reduce((acc, key) => {
-                      if (!['id', 'displayName', 'photoURL'].includes(key)) {
-                        acc[key] = calleeObj[key];
-                      }
-                      return acc;
-                    }, {} as Record<string, unknown>),
-                  };
-                } catch (error) {
-                  logger.error('Failed to parse callee JSON in FCM payload:', error);
-                }
-              } else if (typeof messageData.callee === 'object' && !Array.isArray(messageData.callee)) {
-                // Direct object
-                const calleeObj = messageData.callee as Record<string, unknown>;
-                callee = {
-                  id: String(calleeObj.id || ''),
-                  displayName: String(calleeObj.displayName || 'Unknown'),
-                  photoURL: calleeObj.photoURL ? String(calleeObj.photoURL) : undefined,
-                  ...Object.keys(calleeObj).reduce((acc, key) => {
-                    if (!['id', 'displayName', 'photoURL'].includes(key)) {
-                      acc[key] = calleeObj[key];
-                    }
-                    return acc;
-                  }, {} as Record<string, unknown>),
-                };
-              }
-            }
-            
-            // Extract metadata (any additional fields from backend)
-            const metadata: Record<string, unknown> = {};
-            Object.keys(messageData).forEach((key) => {
-              if (!['callId', 'caller', 'callee'].includes(key)) {
-                metadata[key] = messageData[key];
-              }
-            });
+            const callId = messageData.callId as string
+            const caller = JSON.parse(messageData.caller as string) as CallParticipant
+            const callee = messageData.callee ? JSON.parse(messageData.callee as string) as CallParticipant : undefined;
             
             this.incomingCallCallback({
               callId,
               caller,
               callee,
-              metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
             });
           }
         }

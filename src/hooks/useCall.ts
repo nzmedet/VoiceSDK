@@ -9,22 +9,8 @@ import { CallKeepManager } from '../callkeep/CallKeepManager';
 import { CallId, CallState, SignalingMessage, UserId } from '../core/types';
 import { logger } from '../utils/logger';
 import type { RTCSessionDescriptionInit, MediaStream } from '../core/webrtc-types';
+import { useVoiceSDKContext } from '../context/VoiceSDKContext';
 import '../core/webrtc-types'; // Import for global type declarations
-
-// Shared interface for accessing VoiceSDK instance
-interface GlobalVoiceSDK {
-  VoiceSDK?: {
-    instance?: {
-      notifyCallStarted: (callId: CallId, callerId: UserId, calleeId: UserId) => Promise<void>;
-      notifyCallStateChanged: (callId: CallId, state: CallState) => Promise<void>;
-      notifyCallEnded: (callId: CallId, startTime: number, endTime: number, participants: [UserId, UserId]) => Promise<void>;
-    };
-    config?: { turnServers?: RTCIceServer[] };
-  };
-}
-
-// Import RTCIceServer for the interface
-import type { RTCIceServer } from '../core/webrtc-types';
 
 export interface UseCallReturn {
   startCall: (calleeId: string) => Promise<void>;
@@ -45,6 +31,7 @@ interface CallMetadata {
 }
 
 export function useCall(): UseCallReturn {
+  const voiceSDK = useVoiceSDKContext();
   const [callState, setCallState] = useState<CallState>('idle');
   const [remoteStream, setRemoteStream] = useState<MediaStream>();
   const [localStream, setLocalStream] = useState<MediaStream>();
@@ -143,21 +130,18 @@ export function useCall(): UseCallReturn {
 
       // Notify SDK about call ended with proper metadata
       const metadata = callMetadataRef.current;
-      if (metadata) {
-        const voiceSDKEnded = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-        if (voiceSDKEnded?.instance) {
-          try {
-            const endTime = Date.now();
-            await voiceSDKEnded.instance.notifyCallStateChanged(metadata.callId, 'ended');
-            await voiceSDKEnded.instance.notifyCallEnded(
-              metadata.callId,
-              metadata.startTime,
-              endTime,
-              [metadata.callerId, metadata.calleeId]
-            );
-          } catch (err) {
-            logger.error('Error notifying SDK of call end:', err);
-          }
+      if (metadata && voiceSDK.instance) {
+        try {
+          const endTime = Date.now();
+          await voiceSDK.instance.notifyCallStateChanged(metadata.callId, 'ended');
+          await voiceSDK.instance.notifyCallEnded(
+            metadata.callId,
+            metadata.startTime,
+            endTime,
+            [metadata.callerId, metadata.calleeId]
+          );
+        } catch (err) {
+          logger.error('Error notifying SDK of call end:', err);
         }
 
         // End CallKeep call
@@ -182,7 +166,7 @@ export function useCall(): UseCallReturn {
       setCallState('idle');
       isCallInProgressRef.current = false;
     }
-  }, [callId, callState, localStream, remoteStream]);
+  }, [callId, callState, localStream, remoteStream, voiceSDK]);
 
   const startCall = useCallback(async (calleeId: string) => {
     // Validate input
@@ -246,8 +230,7 @@ export function useCall(): UseCallReturn {
       setCallId(newCallId);
       
       // Notify SDK about call started
-      const voiceSDK = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-      if (voiceSDK?.instance) {
+      if (voiceSDK.instance) {
         try {
           await voiceSDK.instance.notifyCallStarted(newCallId, callerId, calleeId);
           await voiceSDK.instance.notifyCallStateChanged(newCallId, 'ringing');
@@ -326,10 +309,9 @@ export function useCall(): UseCallReturn {
               setCallState('active');
               
               // Notify SDK about state change
-              const voiceSDKAnswer = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-              if (voiceSDKAnswer?.instance && newCallId) {
+              if (voiceSDK.instance && newCallId) {
                 try {
-                  await voiceSDKAnswer.instance.notifyCallStateChanged(newCallId, 'active');
+                  await voiceSDK.instance.notifyCallStateChanged(newCallId, 'active');
                 } catch (err) {
                   logger.warn('Error notifying SDK of active state:', err);
                 }
@@ -367,10 +349,9 @@ export function useCall(): UseCallReturn {
 
       // Notify connecting state
       setCallState('connecting');
-      const voiceSDKConnecting = (global as unknown as GlobalVoiceSDK).VoiceSDK;
-      if (voiceSDKConnecting?.instance) {
+      if (voiceSDK.instance) {
         try {
-          await voiceSDKConnecting.instance.notifyCallStateChanged(newCallId, 'connecting');
+          await voiceSDK.instance.notifyCallStateChanged(newCallId, 'connecting');
         } catch (err) {
           logger.warn('Error notifying SDK of connecting state:', err);
         }

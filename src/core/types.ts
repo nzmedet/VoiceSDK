@@ -14,8 +14,6 @@ export interface CallParticipant {
   id: string;
   displayName: string;
   photoURL?: string;
-  // Backend can add additional fields here
-  [key: string]: unknown;
 }
 
 export interface CallEvent {
@@ -29,7 +27,6 @@ export interface IncomingCall {
   callId: CallId;
   caller: CallParticipant;
   callee?: CallParticipant; // Current user receiving the call (optional - can be auto-populated)
-  metadata?: Record<string, unknown>; // Additional metadata from push payload
 }
 
 // Firebase Timestamp type

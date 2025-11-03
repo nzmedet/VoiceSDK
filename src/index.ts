@@ -62,7 +62,7 @@ export interface VoiceSDKConfig {
   };
 }
 
-class VoiceSDKInstance {
+export class VoiceSDKInstance {
   config?: VoiceSDKConfig;
   private eventListeners: Map<string, Set<(data: CallEvent) => void>> = new Map();
   private incomingCallHandler?: (payload: VoIPPushPayload | FCMPushPayload) => void;
@@ -92,16 +92,20 @@ class VoiceSDKInstance {
     // Initialize push notifications
     this.initializePushNotifications();
 
-    // Store config globally for hooks
-    interface GlobalVoiceSDK {
-      VoiceSDK: {
-        config?: VoiceSDKConfig;
-        setIncomingCallHandler: (handler: ((payload: VoIPPushPayload | FCMPushPayload) => void) | undefined) => void;
-        instance?: VoiceSDKInstance;
-        getCallMetadata: (callId: CallId) => CallMetadata | undefined;
-      };
-    }
-    (global as unknown as GlobalVoiceSDK).VoiceSDK = {
+    logger.info('VoiceSDK initialized');
+  }
+
+  /**
+   * Get the context value for VoiceSDKProvider
+   * This should be called after init() and passed to VoiceSDKProvider
+   */
+  getContextValue(): {
+    config?: VoiceSDKConfig;
+    instance: VoiceSDKInstance;
+    setIncomingCallHandler: (handler: ((payload: VoIPPushPayload | FCMPushPayload) => void) | undefined) => void;
+    getCallMetadata: (callId: CallId) => CallMetadata | undefined;
+  } {
+    return {
       config: this.config,
       instance: this,
       setIncomingCallHandler: (handler) => {
@@ -109,8 +113,6 @@ class VoiceSDKInstance {
       },
       getCallMetadata: (callId: CallId) => this.getCallMetadata(callId),
     };
-
-    logger.info('VoiceSDK initialized');
   }
 
   private initializePushNotifications(): void {
@@ -167,7 +169,7 @@ class VoiceSDKInstance {
     const callee: CallParticipant = payload.callee || {
       id: currentUser?.uid || '',
       displayName: currentUser?.displayName || 'Unknown',
-      photoURL: currentUser?.photoURL || undefined,
+      photoURL: currentUser?.photoURL || '',
     };
     
     // Enrich payload with callee if not provided
@@ -181,7 +183,6 @@ class VoiceSDKInstance {
       callId: enrichedPayload.callId,
       caller: enrichedPayload.caller,
       callee: enrichedPayload.callee || callee,
-      metadata: enrichedPayload.metadata,
       receivedAt: Date.now(),
     };
     
@@ -323,6 +324,10 @@ class VoiceSDKInstance {
 
 // Export singleton instance
 export const VoiceSDK = new VoiceSDKInstance();
+
+// Export Context provider
+export { VoiceSDKProvider, useVoiceSDKContext } from './context/VoiceSDKContext';
+export type { VoiceSDKContextValue, VoiceSDKProviderProps } from './context/VoiceSDKContext';
 
 // Export hooks
 export { useCall } from './hooks/useCall';

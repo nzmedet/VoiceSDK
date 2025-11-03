@@ -8,34 +8,16 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { VoiceSDK, useCall, useIncomingCall } from '../src';
+import { VoiceSDK, VoiceSDKProvider, useCall, useIncomingCall } from '../src';
 
 // Note: Firebase should be initialized separately via @react-native-firebase/app
 // before calling VoiceSDK.init()
 
-export default function App() {
-  const [initialized, setInitialized] = useState(false);
+function AppContent() {
   const [calleeId, setCalleeId] = useState('');
 
+  // Listen for call ended events
   useEffect(() => {
-    // Initialize SDK
-    // Note: Firebase should be initialized separately via @react-native-firebase/app
-    VoiceSDK.init({
-      appName: 'VoiceSDK Example',
-      turnServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-      ],
-    })
-      .then(() => {
-        setInitialized(true);
-        VoiceSDK.enableDebugMode();
-      })
-      .catch((error) => {
-        console.error('Failed to initialize VoiceSDK:', error);
-        Alert.alert('Initialization Error', error.message);
-      });
-
-    // Listen for call ended events
     VoiceSDK.on('call:ended', (event) => {
       // Calculate duration from startTime and endTime (both are Unix timestamps in milliseconds)
       const durationMinutes = (event.endTime - event.startTime) / 60000;
@@ -56,14 +38,6 @@ export default function App() {
     } = useCall();
 
     const { incomingCall, answer, decline } = useIncomingCall();
-
-    if (!initialized) {
-      return (
-        <View style={styles.section}>
-          <Text style={styles.statusText}>Initializing VoiceSDK...</Text>
-        </View>
-      );
-    }
 
     return (
       <ScrollView style={styles.container}>
@@ -152,6 +126,44 @@ export default function App() {
   };
 
   return <CallControls />;
+}
+
+export default function App() {
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    // Initialize SDK
+    // Note: Firebase should be initialized separately via @react-native-firebase/app
+    VoiceSDK.init({
+      appName: 'VoiceSDK Example',
+      turnServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    })
+      .then(() => {
+        setInitialized(true);
+        VoiceSDK.enableDebugMode();
+      })
+      .catch((error) => {
+        console.error('Failed to initialize VoiceSDK:', error);
+        Alert.alert('Initialization Error', error.message);
+      });
+  }, []);
+
+  if (!initialized) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.statusText}>Initializing...</Text>
+      </View>
+    );
+  }
+
+  // Wrap app content with VoiceSDKProvider
+  return (
+    <VoiceSDKProvider value={VoiceSDK.getContextValue()}>
+      <AppContent />
+    </VoiceSDKProvider>
+  );
 }
 
 const styles = StyleSheet.create({
