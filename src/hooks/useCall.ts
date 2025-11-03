@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAuth } from 'firebase/auth';
+import auth from '@react-native-firebase/auth';
 // Removed Firestore imports - hooks no longer manage call state in Firestore
 // Developers should handle call state in their own database via callbacks
 import { CallEngine } from '../core/CallEngine';
@@ -211,12 +211,12 @@ export function useCall(): UseCallReturn {
       setError(undefined);
       setCallState('ringing');
 
-      const auth = getAuth();
-      if (!auth.currentUser?.uid) {
+      const currentUser = auth().currentUser
+      if (!currentUser) {
         throw new Error('User not authenticated');
       }
 
-      const callerId = auth.currentUser.uid;
+      const callerId = currentUser.uid;
 
       // Start local stream
       let stream: MediaStream | undefined;

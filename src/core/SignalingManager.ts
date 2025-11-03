@@ -1,27 +1,18 @@
-import {
-  getFirestore,
-  collection,
-  query,
-  onSnapshot,
-  addDoc,
-  serverTimestamp,
-  orderBy,
-  getDocs,
-} from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import { CallId, SignalingMessage } from './types';
 import { logger } from '../utils/logger';
 
 export class SignalingManager {
-  private db = getFirestore();
-  private auth = getAuth();
+  private db = firestore();
   private unsubscribe?: () => void;
   private lastSeq = 0;
 
   constructor(private callId: CallId) {}
 
   async sendSignaling(msg: Omit<SignalingMessage, 'sender' | 'timestamp'>): Promise<void> {
-    const sender = this.auth.currentUser?.uid;
+    const currentUser = auth().currentUser;
+    const sender = currentUser?.uid;
     if (!sender) {
       throw new Error('User not authenticated');
     }
@@ -35,12 +26,17 @@ export class SignalingManager {
     const maxRetries = 3;
     let lastError: Error | undefined;
     
+    const signalingRef = this.db
+      .collection('calls')
+      .doc(this.callId)
+      .collection('signaling');
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await addDoc(collection(this.db, 'calls', this.callId, 'signaling'), {
+        await signalingRef.add({
           ...msg,
           sender,
-          timestamp: serverTimestamp(),
+          timestamp: firestore.FieldValue.serverTimestamp(),
         });
         logger.debug('Signaling message sent successfully', { type: msg.type, seq: msg.seq, attempt });
         return; // Success
@@ -73,15 +69,21 @@ export class SignalingManager {
       this.unsubscribe = undefined;
     }
 
-    const signalingRef = collection(this.db, 'calls', this.callId, 'signaling');
-    const q = query(signalingRef, orderBy('seq', 'asc'), orderBy('timestamp', 'asc'));
+    const signalingRef = this.db
+      .collection('calls')
+      .doc(this.callId)
+      .collection('signaling');
+    
+    const query = signalingRef
+      .orderBy('seq', 'asc')
+      .orderBy('timestamp', 'asc');
 
     try {
-      this.unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
+      this.unsubscribe = query.onSnapshot(
+        (querySnapshot) => {
           try {
-            snapshot.docChanges().forEach((change) => {
+            const changes = querySnapshot.docChanges();
+            changes.forEach((change) => {
               if (change.type === 'added') {
                 try {
                   const data = change.doc.data() as SignalingMessage;
@@ -93,7 +95,8 @@ export class SignalingManager {
                   }
 
                   // Only process messages from other users
-                  if (data.sender !== this.auth.currentUser?.uid) {
+                  const currentUser = auth().currentUser;
+                  if (data.sender !== currentUser?.uid) {
                     // Skip messages we've already processed (handle duplicates)
                     if (data.seq > this.lastSeq) {
                       this.lastSeq = data.seq;
@@ -154,9 +157,16 @@ export class SignalingManager {
   }
 
   async getSignalingHistory(): Promise<SignalingMessage[]> {
-    const signalingRef = collection(this.db, 'calls', this.callId, 'signaling');
-    const q = query(signalingRef, orderBy('seq', 'asc'), orderBy('timestamp', 'asc'));
-    const snapshot = await getDocs(q);
+    const signalingRef = this.db
+      .collection('calls')
+      .doc(this.callId)
+      .collection('signaling');
+    
+    const query = signalingRef
+      .orderBy('seq', 'asc')
+      .orderBy('timestamp', 'asc');
+    
+    const snapshot = await query.get();
     return snapshot.docs.map((doc) => doc.data() as SignalingMessage);
   }
 

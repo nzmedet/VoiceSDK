@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAuth } from 'firebase/auth';
+import auth from '@react-native-firebase/auth';
 // Removed Firestore imports - hooks no longer manage call state in Firestore
 // Developers should handle call state in their own database via callbacks
 import { CallEngine } from '../core/CallEngine';
@@ -134,8 +134,8 @@ export function useIncomingCall(
     const callId = incomingCall.callId;
     try {
       setIsAnswering(true);
-      const auth = getAuth();
-      if (!auth.currentUser?.uid) {
+      const currentUser = auth().currentUser
+      if (!currentUser) {
         throw new Error('User not authenticated');
       }
 
@@ -339,8 +339,7 @@ export function useIncomingCall(
         try {
           await voiceSDKDecline.instance.notifyCallStateChanged(callId, 'ended');
           const endTime = Date.now();
-          const auth = getAuth();
-          const calleeId = auth.currentUser?.uid || '';
+          const calleeId = auth().currentUser?.uid || '';
           await voiceSDKDecline.instance.notifyCallEnded(
             callId,
             metadata.startTime,

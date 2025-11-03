@@ -13,7 +13,7 @@ npm install @nzmedet/voice-sdk
 This package requires the following peer dependencies:
 
 ```bash
-npm install react react-native firebase @react-native-firebase/app @react-native-firebase/firestore react-native-webrtc react-native-callkeep react-native-pushkit
+npm install react react-native @react-native-firebase/app @react-native-firebase/firestore react-native-webrtc react-native-callkeep react-native-pushkit
 ```
 
 ## Setup
