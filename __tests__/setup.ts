@@ -28,11 +28,9 @@ jest.mock('react-native-callkeep', () => ({
 // Mock react-native-pushkit
 jest.mock('react-native-pushkit', () => ({
   __esModule: true,
-  default: {
-    PushRegistry: jest.fn().mockImplementation(() => ({
-      delegate: {},
-    })),
-  },
+  addTokenListener: jest.fn(),
+  addPayloadListener: jest.fn(),
+  addErrorListener: jest.fn(),
 }));
 
 // Mock @react-native-firebase/messaging
