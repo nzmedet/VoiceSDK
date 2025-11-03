@@ -51,7 +51,11 @@ export class CallKeepManager {
   ): Promise<void> {
     try {
       const uuid = callId;
-      await RNCallKeep.displayIncomingCall(uuid, callerName, callerName, 'number');
+      // displayIncomingCall signature from react-native-callkeep (cometchat fork):
+      // displayIncomingCall(uuid: string, handle: string, handleType: string, callerName?: string)
+      // handle = callerId (phone number/user ID), handleType = 'number', callerName = display name
+      // Note: Using type assertion as the cometchat fork may have different type definitions than expected
+      RNCallKeep.displayIncomingCall(uuid, callerId, callerName, 'generic');
       logger.debug('CallKeep: reported incoming call', { callId, callerId, callerName });
     } catch (error) {
       logger.error('CallKeep: failed to report incoming call:', error);
