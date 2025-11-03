@@ -6,9 +6,9 @@ This document outlines all reliability improvements made to ensure the SDK is pr
 
 ### 1. Call Metadata Tracking
 **Fixed:** Proper tracking of call lifecycle metadata
-- ✅ Added `CallMetadata` interface tracking `callId`, `callerId`, `calleeId`, `startTime`
-- ✅ `startTime` now tracked from call initiation (not defaulted to "1 min ago")
-- ✅ `calleeId` properly stored and passed to callbacks
+- ✅ Added `CallMetadata` interface tracking `callId`, `caller: CallParticipant`, `callee: CallParticipant`, `receivedAt`
+- ✅ `receivedAt` tracked when call is received
+- ✅ `caller` and `callee` (CallParticipant objects) properly stored and passed to callbacks
 - ✅ Metadata persists throughout call lifecycle and available for accurate billing
 
 ### 2. Resource Cleanup
@@ -47,7 +47,7 @@ This document outlines all reliability improvements made to ensure the SDK is pr
 
 ### 6. Input Validation
 **Fixed:** Comprehensive validation prevents invalid operations
-- ✅ `calleeId` validated (non-empty string)
+- ✅ `caller` and `callee` validated (must be CallParticipant objects with `id` and `displayName`)
 - ✅ Signaling messages validated (type, sequence)
 - ✅ SDP validation for offers/answers
 - ✅ ICE candidate validation

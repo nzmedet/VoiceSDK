@@ -10,6 +10,7 @@ import { logger } from '../utils/logger';
 import type { VoIPPushPayload } from '../voip/VoIPPushIOS';
 import type { FCMPushPayload } from '../voip/FCMPushAndroid';
 import type { RTCSessionDescriptionInit, MediaStream, RTCIceServer } from '../core/webrtc-types';
+import type { CallMetadata } from '../index';
 import '../core/webrtc-types'; // Import for global type declarations
 
 // Shared interface for accessing VoiceSDK instance
@@ -20,6 +21,7 @@ interface GlobalVoiceSDK {
       notifyCallEnded: (callId: CallId, startTime: number, endTime: number, participants: [UserId, UserId]) => Promise<void>;
     };
     config?: { turnServers?: RTCIceServer[] };
+    getCallMetadata?: (callId: CallId) => CallMetadata | undefined;
   };
 }
 
@@ -28,6 +30,7 @@ export interface UseIncomingCallReturn {
   answer: () => Promise<void>;
   decline: () => Promise<void>;
   isAnswering: boolean;
+  getCallMetadata: (callId: CallId) => CallMetadata | undefined;
 }
 
 // Helper to get local stream (moved to utils for reuse)
@@ -61,9 +64,9 @@ export function useIncomingCall(
 
   // Listen for incoming calls from push notifications
   useEffect(() => {
-    const handler = (payload: { callId: string; callerId: string; callerName?: string }) => {
+    const handler = (payload: VoIPPushPayload | FCMPushPayload) => {
       // Validate payload
-      if (!payload || !payload.callId || !payload.callerId) {
+      if (!payload || !payload.callId || !payload.caller || !payload.caller.id) {
         logger.warn('Invalid incoming call payload:', payload);
         return;
       }
@@ -80,14 +83,15 @@ export function useIncomingCall(
       // Store metadata
       callMetadataRef.current = {
         callId: payload.callId,
-        callerId: payload.callerId,
+        callerId: payload.caller.id,
         startTime: Date.now(),
       };
 
       const call: IncomingCall = {
         callId: payload.callId,
-        callerId: payload.callerId,
-        callerName: payload.callerName || 'Unknown',
+        caller: payload.caller,
+        callee: payload.callee,
+        metadata: payload.metadata,
       };
 
       setIncomingCall(call);
@@ -340,6 +344,7 @@ export function useIncomingCall(
           await voiceSDKDecline.instance.notifyCallStateChanged(callId, 'ended');
           const endTime = Date.now();
           const calleeId = auth().currentUser?.uid || '';
+          // Use callerId from metadata (stored when call was received)
           await voiceSDKDecline.instance.notifyCallEnded(
             callId,
             metadata.startTime,
@@ -433,11 +438,21 @@ export function useIncomingCall(
     };
   }, []);
 
+  // Get call metadata function
+  const getCallMetadata = useCallback((callId: CallId): CallMetadata | undefined => {
+    const globalSDK = (global as unknown as GlobalVoiceSDK).VoiceSDK;
+    if (globalSDK?.getCallMetadata) {
+      return globalSDK.getCallMetadata(callId);
+    }
+    return undefined;
+  }, []);
+
   return {
     incomingCall,
     answer,
     decline,
     isAnswering,
+    getCallMetadata,
   };
 }
 

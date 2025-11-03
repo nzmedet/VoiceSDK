@@ -10,15 +10,8 @@ import {
 } from 'react-native';
 import { VoiceSDK, useCall, useIncomingCall } from '../src';
 
-// Initialize VoiceSDK (in a real app, this would use actual Firebase config)
-const firebaseConfig = {
-  apiKey: 'your-api-key',
-  authDomain: 'your-auth-domain',
-  projectId: 'your-project-id',
-  storageBucket: 'your-storage-bucket',
-  messagingSenderId: 'your-sender-id',
-  appId: 'your-app-id',
-};
+// Note: Firebase should be initialized separately via @react-native-firebase/app
+// before calling VoiceSDK.init()
 
 export default function App() {
   const [initialized, setInitialized] = useState(false);
@@ -26,8 +19,8 @@ export default function App() {
 
   useEffect(() => {
     // Initialize SDK
+    // Note: Firebase should be initialized separately via @react-native-firebase/app
     VoiceSDK.init({
-      firebaseConfig,
       appName: 'VoiceSDK Example',
       turnServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -85,7 +78,7 @@ export default function App() {
           <View style={styles.section}>
             <Text style={styles.incomingTitle}>Incoming Call</Text>
             <Text style={styles.incomingText}>
-              {incomingCall.callerName} ({incomingCall.callerId})
+              {incomingCall.caller.displayName} ({incomingCall.caller.id})
             </Text>
             <View style={styles.buttonRow}>
               <Button

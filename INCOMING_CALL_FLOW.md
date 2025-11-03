@@ -33,7 +33,8 @@ This document explains how incoming VoIP push notifications trigger CallKeep UI 
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. Push Handler Triggers Callback                            │
 │    VoIPPushIOS/FCMPushAndroid.incomingCallCallback()        │
-│    Called with: { callId, callerId, callerName }            │
+│    Called with: { callId, caller, callee?, metadata? }       │
+│    where caller/callee are CallParticipant objects           │
 └───────────────────┬───────────────────────────────────────────┘
                     │
                     ▼
@@ -140,7 +141,7 @@ This document explains how incoming VoIP push notifications trigger CallKeep UI 
 
 1. **Server sends VoIP push** → Apple Push Notification Service (APNs)
 2. **PushKit receives push** → `pushRegistryDidReceiveIncomingPushWithPayload` called
-3. **VoIPPushIOS extracts data** → `{ callId, callerId, callerName }`
+3. **VoIPPushIOS extracts data** → `{ callId, caller: CallParticipant, callee?: CallParticipant, metadata? }`
 4. **Calls `incomingCallCallback`** → Registered by `VoiceSDK.initializePushNotifications()`
 5. **VoiceSDK.handleIncomingCall()** executes:
    ```typescript
@@ -152,8 +153,8 @@ This document explains how incoming VoIP push notifications trigger CallKeep UI 
    // Part B: Show native UI
    CallKeepManager.reportIncomingCall(
      payload.callId,
-     payload.callerId,
-     payload.callerName || 'Unknown'
+     payload.caller.id,
+     payload.caller.displayName
    ); // This shows iOS native call screen
    ```
 6. **Two UIs show**:
@@ -164,7 +165,7 @@ This document explains how incoming VoIP push notifications trigger CallKeep UI 
 
 1. **Server sends FCM message** → Firebase Cloud Messaging
 2. **FCM receives message** → `onMessage` callback fires (foreground) OR background handler
-3. **FCMPushAndroid extracts data** → `{ callId, callerId, callerName }`
+3. **FCMPushAndroid extracts data** → `{ callId, caller: CallParticipant, callee?: CallParticipant, metadata? }`
 4. **Calls `incomingCallCallback`** → Registered by `VoiceSDK.initializePushNotifications()`
 5. **VoiceSDK.handleIncomingCall()** executes (same as iOS)
 6. **Two UIs show**:

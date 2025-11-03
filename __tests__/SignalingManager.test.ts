@@ -175,9 +175,9 @@ describe('SignalingManager', () => {
   test('should validate signaling message before sending', async () => {
     await expect(
       manager.sendSignaling({
-        type: '' as any,
+        type: '' as 'offer' | 'answer' | 'candidate',
         seq: 0,
-      } as any)
+      })
     ).rejects.toThrow('Invalid signaling message');
   });
 

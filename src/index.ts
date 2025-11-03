@@ -5,6 +5,18 @@ import { logger } from './utils/logger';
 import { CallEvent, CallState, CallId, UserId } from './core/types';
 import type { RTCIceServer } from './core/webrtc-types';
 import { registerGlobals } from 'react-native-webrtc';
+import auth from '@react-native-firebase/auth';
+
+import { CallParticipant } from './core/types';
+
+// Extended call metadata interface for stored call information
+export interface CallMetadata {
+  callId: CallId;
+  caller: CallParticipant;
+  callee: CallParticipant;
+  metadata?: Record<string, unknown>; // Additional metadata from push payload
+  receivedAt: number; // Timestamp when call was received
+}
 
 export interface VoiceSDKCallbacks {
   /**
@@ -54,6 +66,8 @@ class VoiceSDKInstance {
   config?: VoiceSDKConfig;
   private eventListeners: Map<string, Set<(data: CallEvent) => void>> = new Map();
   private incomingCallHandler?: (payload: VoIPPushPayload | FCMPushPayload) => void;
+  // Store call metadata keyed by callId for easy access without refetching
+  private callMetadataStore: Map<CallId, CallMetadata> = new Map();
   
   private getCallbacks(): VoiceSDKCallbacks {
     return this.config?.callbacks || {};
@@ -84,6 +98,7 @@ class VoiceSDKInstance {
         config?: VoiceSDKConfig;
         setIncomingCallHandler: (handler: ((payload: VoIPPushPayload | FCMPushPayload) => void) | undefined) => void;
         instance?: VoiceSDKInstance;
+        getCallMetadata: (callId: CallId) => CallMetadata | undefined;
       };
     }
     (global as unknown as GlobalVoiceSDK).VoiceSDK = {
@@ -92,6 +107,7 @@ class VoiceSDKInstance {
       setIncomingCallHandler: (handler) => {
         this.incomingCallHandler = handler || undefined;
       },
+      getCallMetadata: (callId: CallId) => this.getCallMetadata(callId),
     };
 
     logger.info('VoiceSDK initialized');
@@ -144,15 +160,44 @@ class VoiceSDKInstance {
   }
 
   private handleIncomingCall(payload: VoIPPushPayload | FCMPushPayload): void {
+    // Get current user ID (callee - person receiving the call)
+    const currentUser = auth().currentUser;
+    
+    // Auto-populate callee if not provided
+    const callee: CallParticipant = payload.callee || {
+      id: currentUser?.uid || '',
+      displayName: currentUser?.displayName || 'Unknown',
+      photoURL: currentUser?.photoURL || undefined,
+    };
+    
+    // Enrich payload with callee if not provided
+    const enrichedPayload = {
+      ...payload,
+      callee,
+    };
+    
+    // Store call metadata for later access
+    const callMetadata: CallMetadata = {
+      callId: enrichedPayload.callId,
+      caller: enrichedPayload.caller,
+      callee: enrichedPayload.callee || callee,
+      metadata: enrichedPayload.metadata,
+      receivedAt: Date.now(),
+    };
+    
+    this.callMetadataStore.set(enrichedPayload.callId, callMetadata);
+    logger.debug('Stored call metadata:', callMetadata);
+    
+    // Pass enriched payload to handler
     if (this.incomingCallHandler) {
-      this.incomingCallHandler(payload);
+      this.incomingCallHandler(enrichedPayload);
     }
 
     // Also report to CallKeep
     CallKeepManager.reportIncomingCall(
-      payload.callId,
-      payload.callerId,
-      payload.callerName || 'Unknown'
+      enrichedPayload.callId,
+      enrichedPayload.caller.id,
+      enrichedPayload.caller.displayName
     ).catch((error: unknown) => {
       logger.error('Failed to report incoming call to CallKeep:', error);
     });
@@ -210,6 +255,12 @@ class VoiceSDKInstance {
       endTime,
       participants,
     });
+    
+    // Clean up stored metadata after a delay to allow apps to access it
+    // Clear after 5 minutes to handle edge cases
+    setTimeout(() => {
+      this.clearCallMetadata(callId);
+    }, 5 * 60 * 1000);
   }
 
   enableDebugMode(): void {
@@ -247,6 +298,27 @@ class VoiceSDKInstance {
       });
     }
   }
+
+  /**
+   * Get stored call metadata by callId.
+   * This allows apps to access caller/callee info without refetching from backend.
+   * 
+   * @param callId - The call ID to look up
+   * @returns Call metadata if found, undefined otherwise
+   */
+  getCallMetadata(callId: CallId): CallMetadata | undefined {
+    return this.callMetadataStore.get(callId);
+  }
+
+  /**
+   * Remove call metadata from store (called when call ends to free memory).
+   * 
+   * @param callId - The call ID to remove
+   */
+  clearCallMetadata(callId: CallId): void {
+    this.callMetadataStore.delete(callId);
+    logger.debug('Cleared call metadata for:', callId);
+  }
 }
 
 // Export singleton instance
@@ -267,8 +339,10 @@ export type {
   IncomingCall,
   CallId,
   UserId,
+  CallParticipant,
 } from './core/types';
 
+// CallMetadata is already exported as an interface above
 export type { UseCallReturn } from './hooks/useCall';
 export type { UseIncomingCallReturn } from './hooks/useIncomingCall';
 

@@ -99,12 +99,20 @@ function MyComponent() {
 import { useIncomingCall } from 'voice-sdk';
 
 function IncomingCallComponent() {
-  const { incomingCall, answer, decline } = useIncomingCall();
+  const { incomingCall, answer, decline, getCallMetadata } = useIncomingCall();
 
   if (incomingCall) {
+    // Access participant info
+    const caller = incomingCall.caller;
+    const callee = incomingCall.callee;
+    
+    // Or get full metadata including any backend-provided fields
+    const metadata = getCallMetadata(incomingCall.callId);
+    
     return (
       <View>
-        <Text>{incomingCall.callerName} is calling...</Text>
+        <Text>{caller.displayName} is calling...</Text>
+        {caller.photoURL && <Image source={{ uri: caller.photoURL }} />}
         <Button title="Answer" onPress={answer} />
         <Button title="Decline" onPress={decline} />
       </View>
@@ -166,6 +174,49 @@ mkdir -p your-firebase-project/functions/utils
 cp firebase/functions/utils/callHelpers.ts your-firebase-project/functions/utils/
 ```
 
+## Push Notification Payload Format
+
+When sending push notifications to trigger incoming calls, use this structure:
+
+### iOS (VoIP Push)
+
+```json
+{
+  "callId": "call-uuid-123",
+  "caller": {
+    "id": "user-123",
+    "displayName": "John Doe",
+    "photoURL": "https://example.com/photo.jpg"
+    // Backend can add additional fields here
+  },
+  "callee": {
+    "id": "user-456",
+    "displayName": "Jane Smith",
+    "photoURL": "https://example.com/jane.jpg"
+  },
+  // Optional: additional metadata
+  "metadata": {
+    "customField": "value"
+  }
+}
+```
+
+### Android (FCM)
+
+The `caller` and `callee` objects can be sent as:
+- Direct JSON objects in the data payload
+- JSON strings that will be parsed
+
+```json
+{
+  "callId": "call-uuid-123",
+  "caller": "{\"id\":\"user-123\",\"displayName\":\"John Doe\",\"photoURL\":\"https://example.com/photo.jpg\"}",
+  "callee": "{\"id\":\"user-456\",\"displayName\":\"Jane Smith\"}"
+}
+```
+
+**Important:** The SDK expects exactly `id`, `displayName`, and `photoURL` (optional) fields in `CallParticipant` objects. No backward compatibility for flattened fields like `callerId`, `callerName`, etc.
+
 ## Features
 
 - ✅ WebRTC voice calling with auto-reconnect
@@ -173,6 +224,7 @@ cp firebase/functions/utils/callHelpers.ts your-firebase-project/functions/utils
 - ✅ CallKeep integration for native call UI
 - ✅ VoIP push notifications (iOS)
 - ✅ FCM push notifications (Android)
+- ✅ Call metadata storage (no backend refetch needed)
 - ✅ Billing helpers (you implement your own billing logic)
 - ✅ TypeScript support
 - ✅ React hooks API

@@ -9,6 +9,15 @@ export type CallState =
   | 'ended'
   | 'failed';
 
+// Participant object - reusable structure for caller and callee
+export interface CallParticipant {
+  id: string;
+  displayName: string;
+  photoURL?: string;
+  // Backend can add additional fields here
+  [key: string]: unknown;
+}
+
 export interface CallEvent {
   callId: CallId;
   startTime: number; // Unix timestamp in milliseconds
@@ -18,8 +27,9 @@ export interface CallEvent {
 
 export interface IncomingCall {
   callId: CallId;
-  callerId: UserId;
-  callerName: string;
+  caller: CallParticipant;
+  callee?: CallParticipant; // Current user receiving the call (optional - can be auto-populated)
+  metadata?: Record<string, unknown>; // Additional metadata from push payload
 }
 
 // Firebase Timestamp type

@@ -3,21 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useIncomingCall } from '../hooks/useIncomingCall';
 
 export interface IncomingCallScreenProps {
-  route?: {
-    params?: {
-      callerName?: string;
-      callId?: string;
-    };
-  };
+  // This component gets all data from useIncomingCall hook
+  // No props needed - it's self-contained
 }
 
-export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({ route }) => {
+export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = () => {
   const { incomingCall, answer, decline, isAnswering } = useIncomingCall();
 
-  const callerName =
-    route?.params?.callerName || incomingCall?.callerName || 'Unknown Caller';
-
-  if (!incomingCall && !route?.params?.callId) {
+  if (!incomingCall) {
     return (
       <View style={styles.container}>
         <Text style={styles.text}>No incoming call</Text>
@@ -25,9 +18,11 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({ route })
     );
   }
 
+  const caller = incomingCall.caller;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{callerName}</Text>
+      <Text style={styles.title}>{caller.displayName}</Text>
       <Text style={styles.subtitle}>is calling...</Text>
 
       <View style={styles.buttonContainer}>

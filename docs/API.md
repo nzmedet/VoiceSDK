@@ -128,6 +128,19 @@ const {
 
 - `incomingCall: IncomingCall | null` - Current incoming call information
 - `isAnswering: boolean` - Whether the call is currently being answered
+- `getCallMetadata: (callId: CallId) => CallMetadata | undefined` - Get stored call metadata by callId
+
+### `CallMetadata`
+
+```typescript
+interface CallMetadata {
+  callId: CallId;
+  caller: CallParticipant;
+  callee: CallParticipant;
+  metadata?: Record<string, unknown>; // Additional metadata from push payload
+  receivedAt: number; // Timestamp when call was received
+}
+```
 
 ## Types
 
@@ -148,13 +161,26 @@ interface CallEvent {
 }
 ```
 
+### `CallParticipant`
+
+```typescript
+interface CallParticipant {
+  id: string;
+  displayName: string;
+  photoURL?: string;
+  // Backend can add additional fields here
+  [key: string]: unknown;
+}
+```
+
 ### `IncomingCall`
 
 ```typescript
 interface IncomingCall {
   callId: CallId;
-  callerId: UserId;
-  callerName: string;
+  caller: CallParticipant;
+  callee?: CallParticipant; // Current user receiving the call (optional - auto-populated if not provided)
+  metadata?: Record<string, unknown>; // Additional metadata from push payload
 }
 ```
 
@@ -170,7 +196,6 @@ import { IncomingCallScreen } from 'voice-sdk';
 <IncomingCallScreen
   route={{
     params: {
-      callerName: 'John Doe',
       callId: 'call-123',
     },
   }}
@@ -225,7 +250,7 @@ export default function App() {
 
       {incomingCall && (
         <View>
-          <Text>{incomingCall.callerName} is calling...</Text>
+          <Text>{incomingCall.caller.displayName} is calling...</Text>
           <Button title="Answer" onPress={answer} />
           <Button title="Decline" onPress={decline} />
         </View>
