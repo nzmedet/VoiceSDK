@@ -22,16 +22,9 @@ npm install react react-native @react-native-firebase/app @react-native-firebase
 
 ```typescript
 import { VoiceSDK } from 'voice-sdk';
-
+// initialise @react-native-firebase
+// initialiseApp
 VoiceSDK.init({
-  firebaseConfig: {
-    apiKey: 'your-api-key',
-    authDomain: 'your-auth-domain',
-    projectId: 'your-project-id',
-    storageBucket: 'your-storage-bucket',
-    messagingSenderId: 'your-sender-id',
-    appId: 'your-app-id',
-  },
   appName: 'MyApp',
   turnServers: [
     { urls: 'stun:stun.l.google.com:19302' },

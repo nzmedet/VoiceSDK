@@ -1,4 +1,3 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
 import { CallKeepManager } from './callkeep/CallKeepManager';
 import { VoIPPushIOS, VoIPPushPayload } from './voip/VoIPPushIOS';
 import { FCMPushAndroid, FCMPushPayload } from './voip/FCMPushAndroid';
@@ -6,15 +5,6 @@ import { logger } from './utils/logger';
 import { CallEvent, CallState, CallId, UserId } from './core/types';
 import type { RTCIceServer } from './core/webrtc-types';
 import { registerGlobals } from 'react-native-webrtc';
-
-export interface FirebaseAppConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-}
 
 export interface VoiceSDKCallbacks {
   /**
@@ -46,7 +36,6 @@ export interface VoiceSDKCallbacks {
 }
 
 export interface VoiceSDKConfig {
-  firebaseConfig: FirebaseAppConfig;
   turnServers?: RTCIceServer[];
   appName: string;
   /**
@@ -63,7 +52,6 @@ export interface VoiceSDKConfig {
 
 class VoiceSDKInstance {
   config?: VoiceSDKConfig;
-  app?: FirebaseApp;
   private eventListeners: Map<string, Set<(data: CallEvent) => void>> = new Map();
   private incomingCallHandler?: (payload: VoIPPushPayload | FCMPushPayload) => void;
   
@@ -82,8 +70,6 @@ class VoiceSDKInstance {
       logger.warn('Failed to register WebRTC globals (may already be registered):', error);
     }
 
-    // Initialize Firebase
-    this.app = initializeApp(config.firebaseConfig);
     logger.info('Firebase initialized');
 
     // Initialize CallKeep
