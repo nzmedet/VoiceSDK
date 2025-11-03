@@ -5,7 +5,7 @@ Production-grade WebRTC voice calling SDK for React Native with Firebase signali
 ## Installation
 
 ```bash
-npm install voice-sdk
+npm install @nzmedet/voice-sdk
 ```
 
 ### Peer Dependencies

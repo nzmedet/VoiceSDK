@@ -1,5 +1,5 @@
 #!/bin/bash
-# Quick publish script for voice-sdk
+# Quick publish script for @nzmedet/voice-sdk
 
 set -e  # Exit on error
 
@@ -15,8 +15,8 @@ npm publish
 echo "✅ Published successfully to npm!"
 echo ""
 echo "📝 Next steps:"
-echo "   1. Install anywhere: npm install voice-sdk"
+echo "   1. Install anywhere: npm install @nzmedet/voice-sdk"
 echo "   2. Push tags: git push --tags (if you used npm version)"
 echo "   3. Create GitHub release (optional)"
-echo "   4. Share: https://www.npmjs.com/package/voice-sdk"
+echo "   4. Share: https://www.npmjs.com/package/@nzmedet/voice-sdk"
 

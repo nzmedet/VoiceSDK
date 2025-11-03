@@ -1,9 +1,9 @@
-# voice-sdk API Documentation
+# @nzmedet/voice-sdk API Documentation
 
 ## Installation
 
 ```bash
-npm install voice-sdk
+npm install @nzmedet/voice-sdk
 ```
 
 ## Setup
@@ -11,7 +11,7 @@ npm install voice-sdk
 ### Initialization
 
 ```typescript
-import { VoiceSDK } from 'voice-sdk';
+import { VoiceSDK } from '@nzmedet/voice-sdk';
 
 VoiceSDK.init({
   firebaseConfig: {
