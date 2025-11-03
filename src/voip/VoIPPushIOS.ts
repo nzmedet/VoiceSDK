@@ -8,8 +8,12 @@ export interface VoIPPushPayload {
   callId: string;
   caller: CallParticipant;
   callee?: CallParticipant; // Current user receiving the call (will be auto-populated if not provided)
-  // Additional metadata from backend can be stored here
-  metadata?: Record<string, unknown>;
+}
+
+export interface VoIPRawPayload {
+  callId: string;
+  caller: string;
+  callee?: string;
 }
 
 interface TokenPayload {
@@ -17,7 +21,7 @@ interface TokenPayload {
 }
 
 interface PayloadPayload {
-  payload: Record<string, unknown>;
+  payload: Record<string, string>;
 }
 
 interface ErrorPayload {
@@ -67,59 +71,14 @@ export class VoIPPushIOS {
         const data = event.payload;
         
         if (this.incomingCallCallback) {
-          const callId = String(data.callId || '');
-          
-          // Extract caller - must be an object with id, displayName, photoURL
-          const callerObj = data.caller as Record<string, unknown> | undefined;
-          if (!callerObj || typeof callerObj !== 'object' || Array.isArray(callerObj)) {
-            logger.error('Invalid caller object in VoIP push payload');
-            return;
-          }
-          
-          const caller: CallParticipant = {
-            id: String(callerObj.id || ''),
-            displayName: String(callerObj.displayName || 'Unknown'),
-            photoURL: callerObj.photoURL ? String(callerObj.photoURL) : undefined,
-            // Include any additional fields from the caller object
-            ...Object.keys(callerObj).reduce((acc, key) => {
-              if (!['id', 'displayName', 'photoURL'].includes(key)) {
-                acc[key] = callerObj[key];
-              }
-              return acc;
-            }, {} as Record<string, unknown>),
-          };
-          
-          // Extract callee - optional, must be an object if provided
-          let callee: CallParticipant | undefined;
-          if (data.callee && typeof data.callee === 'object' && !Array.isArray(data.callee)) {
-            const calleeObj = data.callee as Record<string, unknown>;
-            callee = {
-              id: String(calleeObj.id || ''),
-              displayName: String(calleeObj.displayName || 'Unknown'),
-              photoURL: calleeObj.photoURL ? String(calleeObj.photoURL) : undefined,
-              // Include any additional fields from the callee object
-              ...Object.keys(calleeObj).reduce((acc, key) => {
-                if (!['id', 'displayName', 'photoURL'].includes(key)) {
-                  acc[key] = calleeObj[key];
-                }
-                return acc;
-              }, {} as Record<string, unknown>),
-            };
-          }
-          
-          // Extract metadata (any additional fields from backend, excluding caller/callee objects)
-          const metadata: Record<string, unknown> = {};
-          Object.keys(data).forEach((key) => {
-            if (!['callId', 'caller', 'callee'].includes(key)) {
-              metadata[key] = data[key];
-            }
-          });
+          const callId = data.callId;
+          const caller = JSON.parse(data.caller) as CallParticipant;
+          const callee = data.callee ? JSON.parse(data.callee) as CallParticipant : undefined;
           
           this.incomingCallCallback({
             callId,
             caller,
             callee,
-            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
           });
         }
       });
