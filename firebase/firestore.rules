@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is a participant
+    function isParticipant(uid) {
+      return uid in [resource.data.caller, resource.data.callee];
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Calls collection
+    match /calls/{callId} {
+      // Allow creating a call if user is the caller and callee exists
+      allow create: if request.auth != null 
+        && request.resource.data.caller == request.auth.uid
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.callee));
+
+      // Allow updating if user is a participant and version increments
+      allow update: if request.auth != null
+        && isParticipant(request.auth.uid)
+        && request.resource.data.version == resource.data.version + 1;
+
+      // Allow reading if user is a participant
+      allow read: if request.auth != null && isParticipant(request.auth.uid);
+
+      // Signaling subcollection
+      match /signaling/{msgId} {
+        // Allow creating signaling messages if user is a participant
+        allow create: if request.auth != null
+          && isParticipant(request.auth.uid)
+          && request.resource.data.seq is int
+          && request.resource.data.seq > 0;
+
+        // Allow reading if user is a participant
+        allow read: if request.auth != null && isParticipant(request.auth.uid);
+      }
+    }
+  }
+}
+

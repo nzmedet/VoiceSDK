@@ -1,0 +1,14 @@
+node_modules/
+__tests__/
+example/
+*.test.ts
+*.test.tsx
+*.log
+.DS_Store
+coverage/
+.idea/
+.vscode/
+tsconfig.json
+jest.config.js
+.gitignore
+
