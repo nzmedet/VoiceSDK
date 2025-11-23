@@ -18,6 +18,9 @@ export interface UseIncomingCallReturn {
   answer: () => Promise<void>;
   decline: () => Promise<void>;
   isAnswering: boolean;
+  localStream?: MediaStream;
+  remoteStream?: MediaStream;
+  isConnected: boolean;
   getCallMetadata: (callId: CallId) => CallMetadata | undefined;
 }
 
@@ -43,6 +46,9 @@ export function useIncomingCall(
   const voiceSDK = useVoiceSDKContext();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | undefined>(undefined);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | undefined>(undefined);
+  const [isConnected, setIsConnected] = useState(false);
 
   const engineRef = useRef<CallEngine | undefined>(undefined);
   const signalingRef = useRef<SignalingManager | undefined>(undefined);
@@ -136,6 +142,7 @@ export function useIncomingCall(
       try {
         stream = await getLocalStream();
         localStreamRef.current = stream;
+        setLocalStream(stream);
       } catch (err) {
         logger.error('Failed to get local stream:', err);
         throw new Error(`Failed to access microphone: ${(err as Error).message}`);
@@ -175,11 +182,17 @@ export function useIncomingCall(
       engine.onRemoteStream((remote: MediaStream) => {
         logger.debug('Remote stream received');
         remoteStreamRef.current = remote;
+        setRemoteStream(remote);
       });
 
       // Listen for connection state changes
       engine.onConnectionStateChange((state) => {
         logger.debug('ICE connection state changed:', state);
+        if (state === 'connected' || state === 'completed') {
+          setIsConnected(true);
+        } else if (state === 'failed' || state === 'disconnected') {
+          setIsConnected(false);
+        }
       });
 
       // Listen for errors
@@ -275,6 +288,7 @@ export function useIncomingCall(
           logger.warn('Error accessing local stream tracks on decline:', err);
         }
         localStreamRef.current = undefined;
+        setLocalStream(undefined);
       }
 
       // Clean up remote stream
@@ -292,6 +306,7 @@ export function useIncomingCall(
           logger.warn('Error accessing remote stream tracks on decline:', err);
         }
         remoteStreamRef.current = undefined;
+        setRemoteStream(undefined);
       }
 
       // Clean up signaling
@@ -340,11 +355,13 @@ export function useIncomingCall(
       }
 
       setIncomingCall(null);
+      setIsConnected(false);
       callMetadataRef.current = undefined;
     } catch (err) {
       logger.error('Failed to decline call:', err);
       // Ensure state is cleared even on error
       setIncomingCall(null);
+      setIsConnected(false);
       callMetadataRef.current = undefined;
     }
   }, [incomingCall]);
@@ -424,6 +441,9 @@ export function useIncomingCall(
     answer,
     decline,
     isAnswering,
+    localStream,
+    remoteStream,
+    isConnected,
     getCallMetadata,
   };
 }
