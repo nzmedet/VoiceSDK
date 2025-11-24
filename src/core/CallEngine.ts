@@ -110,8 +110,10 @@ export class CallEngine extends EventEmitter {
   setLocalStream(stream: MediaStream): void {
     this.localStream = stream;
     const tracks = stream.getTracks();
+    const transceiver = this.pc.addTransceiver('audio', { direction: 'sendrecv' });
     tracks.forEach((track) => {
       this.pc.addTrack(track, stream);
+      transceiver.sender.replaceTrack(track);
     });
   }
 
@@ -124,6 +126,8 @@ export class CallEngine extends EventEmitter {
       ],
       iceCandidatePoolSize: 10,
     });
+
+    this.pc.addTransceiver('audio', { direction: 'sendrecv' });
 
     this.pc.onicecandidate = ((e: { candidate: RTCIceCandidate | null }) => {
       if (e.candidate && this.sendSignaling) {
@@ -150,7 +154,7 @@ export class CallEngine extends EventEmitter {
     this.pc.oniceconnectionstatechange = () => {
       const state = this.pc.iceConnectionState;
       logger.debug('ICE connection state changed:', state);
-      
+
       if (state === 'failed') {
         logger.warn('ICE connection failed, attempting restart');
         this.restartIce();
@@ -178,7 +182,7 @@ export class CallEngine extends EventEmitter {
       offer.sdp = forceSdpOptimization(offer.sdp)
 
       await this.pc.setLocalDescription(offer);
-      
+
       if (this.sendSignaling) {
         try {
           await this.sendSignaling({
@@ -193,7 +197,7 @@ export class CallEngine extends EventEmitter {
           // Don't throw - offer is set locally and might still work
         }
       }
-      
+
       return offer;
     } catch (error) {
       logger.error('Failed to create offer:', error);
@@ -209,10 +213,10 @@ export class CallEngine extends EventEmitter {
     try {
       const RTCSessionDescriptionConstructor = getRTCSessionDescription();
       await this.pc.setRemoteDescription(new RTCSessionDescriptionConstructor(offer));
-      
+
       const answer = await this.pc.createAnswer();
       await this.pc.setLocalDescription(answer);
-      
+
       if (this.sendSignaling) {
         try {
           await this.sendSignaling({
@@ -284,12 +288,16 @@ export class CallEngine extends EventEmitter {
 
     this.reconnectAttempts++;
     logger.debug('Restarting ICE', { attempt: this.reconnectAttempts, max: this.maxReconnects });
-    
+
     try {
-      const offer = await this.pc.createOffer({ iceRestart: true });
+      const offer = await this.pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false,
+        iceRestart: true
+      });
       offer.sdp = forceSdpOptimization(offer.sdp);
       await this.pc.setLocalDescription(offer);
-      
+
       if (this.sendSignaling) {
         try {
           await this.sendSignaling({
