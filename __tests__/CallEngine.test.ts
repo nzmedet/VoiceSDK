@@ -15,6 +15,7 @@ const mockRTCPeerConnectionImpl = jest.fn().mockImplementation(() => ({
   setLocalDescription: jest.fn().mockResolvedValue(undefined),
   setRemoteDescription: jest.fn().mockResolvedValue(undefined),
   addIceCandidate: jest.fn().mockResolvedValue(undefined),
+  addTransceiver: jest.fn(),
   close: jest.fn(),
   signalingState: 'stable',
   connectionState: 'new',
