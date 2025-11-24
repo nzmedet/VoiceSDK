@@ -124,7 +124,6 @@ export class CallEngine extends EventEmitter {
       ],
       iceCandidatePoolSize: 10,
     });
-    this.pc.addTransceiver('audio', { direction: 'sendrecv' });
 
     this.pc.onicecandidate = ((e: { candidate: RTCIceCandidate | null }) => {
       if (e.candidate && this.sendSignaling) {
