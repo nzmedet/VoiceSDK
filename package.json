@@ -1,6 +1,6 @@
 {
   "name": "@nzmedet/voice-sdk",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Production-grade WebRTC voice calling SDK for React Native with Firebase signaling, CallKeep UI, VoIP push, metered billing, and auto-reconnect.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
