@@ -1,3 +1,4 @@
+import { off } from 'process';
 import { CallEngine } from '../src/core/CallEngine';
 import type { MediaStream, MediaStreamTrack } from '../src/core/webrtc-types';
 
@@ -15,7 +16,11 @@ const mockRTCPeerConnectionImpl = jest.fn().mockImplementation(() => ({
   setLocalDescription: jest.fn().mockResolvedValue(undefined),
   setRemoteDescription: jest.fn().mockResolvedValue(undefined),
   addIceCandidate: jest.fn().mockResolvedValue(undefined),
-  addTransceiver: jest.fn(),
+  addTransceiver: jest.fn().mockReturnValue({
+    sender: {
+      replaceTrack: jest.fn(),
+    }
+  }),
   close: jest.fn(),
   signalingState: 'stable',
   connectionState: 'new',
@@ -90,7 +95,7 @@ describe('CallEngine', () => {
     // Wait for async operations
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(pc.createOffer).toHaveBeenCalledWith({ iceRestart: true });
+    expect(pc.createOffer).toHaveBeenCalledWith({ iceRestart: true, offerToReceiveAudio: true, offerToReceiveVideo: false });
   });
 
   test('should handle answer', async () => {
