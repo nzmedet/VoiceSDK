@@ -62,13 +62,15 @@ export function useCall(): UseCallReturn {
   }, []);
 
   const endCall = useCallback(async () => {
-    logger.info('useCall: Ending call');
+    logger.info('useCall => endCall');
     // Prevent concurrent endCall calls
     if (!isCallInProgressRef.current && callState === 'idle') {
+      logger.info('useCall: no call in progress, nothing to end');
       return;
     }
 
     try {
+      logger.info('useCall => endCall: cleaning up resources');
       // Clear any pending timeouts
       if (connectionTimeoutRef.current) {
         clearTimeout(connectionTimeoutRef.current);
@@ -83,6 +85,8 @@ export function useCall(): UseCallReturn {
           logger.warn('Error ending engine:', err);
         }
         engineRef.current = undefined;
+      } else {
+        logger.warn('useCall: engineRef.current is undefined');
       }
 
       // Clean up local stream
@@ -96,6 +100,8 @@ export function useCall(): UseCallReturn {
           logger.warn('Error stopping local stream tracks:', err);
         }
         setLocalStream(undefined);
+      } else {
+        logger.warn('useCall: localStream is undefined');
       }
 
       // Clean up remote stream
@@ -109,6 +115,8 @@ export function useCall(): UseCallReturn {
           logger.warn('Error stopping remote stream tracks:', err);
         }
         setRemoteStream(undefined);
+      } else {
+        logger.warn('useCall: remoteStream is undefined');
       }
 
       // Clean up signaling subscription
@@ -152,6 +160,8 @@ export function useCall(): UseCallReturn {
         } catch (err) {
           logger.warn('Error ending CallKeep call:', err);
         }
+      } else {
+        logger.warn('useCall: callMetadataRef.current is undefined or voiceSDK.instance is unavailable');
       }
 
       // Reset state
