@@ -206,13 +206,17 @@ export function useIncomingCall(
       const unsubscribe = signaling.subscribeToSignaling(
         async (msg: SignalingMessage) => {
           try {
-            if (msg.type === 'offer') {
+            if (msg.type === 'end') {
+              // Other party ended the call - cleanup our side
+              logger.info('Received end signal from other party');
+              await decline();
+            } else if (msg.type === 'offer') {
               if (!msg.sdp) {
                 logger.warn('Received offer without SDP');
                 return;
               }
               await engine.handleOffer({ type: 'offer', sdp: msg.sdp } as RTCSessionDescriptionInit);
-              
+
               // Notify call is active
               if (voiceSDK?.instance) {
                 try {
@@ -264,6 +268,20 @@ export function useIncomingCall(
 
     const callId = incomingCall.callId;
     try {
+      // Send 'end' signal to other party
+      // Note: Create a new SignalingManager if we don't have one (e.g., declining before answering)
+      try {
+        const signaling = signalingRef.current || new SignalingManager(callId);
+        await signaling.sendSignaling({
+          type: 'end',
+          seq: Date.now(),
+        });
+        logger.info('Sent end signal to other party on decline');
+      } catch (err) {
+        logger.warn('Failed to send end signal on decline:', err);
+        // Continue with cleanup even if signaling fails
+      }
+
       // Cleanup resources
       if (engineRef.current) {
         try {

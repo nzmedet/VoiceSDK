@@ -39,7 +39,7 @@ export type FirebaseTimestamp = {
 import type { RTCIceCandidateInit } from './webrtc-types';
 
 export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'candidate';
+  type: 'offer' | 'answer' | 'candidate' | 'end';
   sdp?: string;
   candidate?: RTCIceCandidateInit;
   seq: number;

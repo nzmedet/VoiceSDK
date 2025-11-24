@@ -70,6 +70,24 @@ export function useCall(): UseCallReturn {
 
     try {
       logger.info('useCall => endCall: cleaning up resources');
+
+      // Send 'end' signal to other party via Firestore if we have a callId
+      // This allows the other device to end the call even if we don't have engineRef
+      // Note: We create a new SignalingManager if we don't have one (e.g., User B ending User A's call)
+      if (callId) {
+        try {
+          const signaling = signalingRef.current || new SignalingManager(callId);
+          await signaling.sendSignaling({
+            type: 'end',
+            seq: Date.now(), // Use timestamp as sequence
+          });
+          logger.info('Sent end signal to other party');
+        } catch (err) {
+          logger.warn('Failed to send end signal:', err);
+          // Continue with cleanup even if signaling fails
+        }
+      }
+
       // Clear any pending timeouts
       if (connectionTimeoutRef.current) {
         clearTimeout(connectionTimeoutRef.current);
@@ -175,7 +193,7 @@ export function useCall(): UseCallReturn {
       // Ensure state is reset even on error
       setCallState('idle');
     }
-  }, [callId, callState, localStream, remoteStream, voiceSDK]);
+  }, [callId, callState, voiceSDK]);
 
   const startCall = useCallback(async (calleeId: string) => {
     // Validate input
@@ -301,14 +319,18 @@ export function useCall(): UseCallReturn {
       const unsubscribe = signaling.subscribeToSignaling(
         async (msg: SignalingMessage) => {
           try {
-            if (msg.type === 'answer') {
+            if (msg.type === 'end') {
+              // Other party ended the call - cleanup our side
+              logger.info('Received end signal from other party');
+              await endCall();
+            } else if (msg.type === 'answer') {
               if (!msg.sdp) {
                 logger.warn('Received answer without SDP');
                 return;
               }
               await engine.handleAnswer({ type: 'answer', sdp: msg.sdp } as RTCSessionDescriptionInit);
               setCallState('active');
-              
+
               // Notify SDK about state change
               if (voiceSDK.instance && newCallId) {
                 try {
