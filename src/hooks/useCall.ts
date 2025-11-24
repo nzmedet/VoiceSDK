@@ -62,11 +62,6 @@ export function useCall(): UseCallReturn {
 
   const endCall = useCallback(async () => {
     logger.info('useCall => endCall');
-    // Prevent concurrent endCall calls
-    if (callState === 'idle') {
-      logger.info('useCall: no call in progress, nothing to end');
-      return;
-    }
 
     try {
       logger.info('useCall => endCall: cleaning up resources');
