@@ -62,6 +62,7 @@ export function useCall(): UseCallReturn {
   }, []);
 
   const endCall = useCallback(async () => {
+    logger.info('useCall: Ending call');
     // Prevent concurrent endCall calls
     if (!isCallInProgressRef.current && callState === 'idle') {
       return;

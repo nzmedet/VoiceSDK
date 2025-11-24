@@ -325,6 +325,7 @@ export class CallEngine extends EventEmitter {
 
   async endCall(): Promise<void> {
     try {
+      logger.info('CallEngine: Ending call and cleaning up resources');
       // Stop local stream tracks
       if (this.localStream) {
         try {
