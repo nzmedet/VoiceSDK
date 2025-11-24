@@ -123,6 +123,7 @@ export class CallEngine extends EventEmitter {
       ],
       iceCandidatePoolSize: 10,
     });
+    this.pc.addTransceiver('audio', { direction: 'sendrecv' });
 
     this.pc.onicecandidate = ((e: { candidate: RTCIceCandidate | null }) => {
       if (e.candidate && this.sendSignaling) {
@@ -169,7 +170,10 @@ export class CallEngine extends EventEmitter {
 
   async createOffer(): Promise<RTCSessionDescriptionInit> {
     try {
-      const offer = await this.pc.createOffer();
+      const offer = await this.pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false,
+      });
       await this.pc.setLocalDescription(offer);
       
       if (this.sendSignaling) {
