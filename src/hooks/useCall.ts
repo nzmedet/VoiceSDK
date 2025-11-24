@@ -44,7 +44,6 @@ export function useCall(): UseCallReturn {
   const signalingRef = useRef<SignalingManager | undefined>(undefined);
   const cleanupRef = useRef<(() => void) | undefined>(undefined);
   const callMetadataRef = useRef<CallMetadata | undefined>(undefined);
-  const isCallInProgressRef = useRef<boolean>(false);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const getLocalStream = useCallback(async (): Promise<MediaStream> => {
@@ -64,7 +63,7 @@ export function useCall(): UseCallReturn {
   const endCall = useCallback(async () => {
     logger.info('useCall => endCall');
     // Prevent concurrent endCall calls
-    if (!isCallInProgressRef.current && callState === 'idle') {
+    if (callState === 'idle') {
       logger.info('useCall: no call in progress, nothing to end');
       return;
     }
@@ -170,13 +169,11 @@ export function useCall(): UseCallReturn {
       setCallState('idle');
       setError(undefined);
       callMetadataRef.current = undefined;
-      isCallInProgressRef.current = false;
     } catch (err) {
       logger.error('Error ending call:', err);
       setError(err as Error);
       // Ensure state is reset even on error
       setCallState('idle');
-      isCallInProgressRef.current = false;
     }
   }, [callId, callState, localStream, remoteStream, voiceSDK]);
 
@@ -184,13 +181,6 @@ export function useCall(): UseCallReturn {
     // Validate input
     if (!calleeId || typeof calleeId !== 'string' || calleeId.trim().length === 0) {
       const err = new Error('Invalid calleeId: must be a non-empty string');
-      setError(err);
-      throw err;
-    }
-
-    // Prevent concurrent calls
-    if (isCallInProgressRef.current) {
-      const err = new Error('Call already in progress. End current call before starting a new one.');
       setError(err);
       throw err;
     }
@@ -204,7 +194,6 @@ export function useCall(): UseCallReturn {
     }
 
     try {
-      isCallInProgressRef.current = true;
       setError(undefined);
       setCallState('ringing');
 
@@ -393,7 +382,6 @@ export function useCall(): UseCallReturn {
           logger.warn('Connection timeout - call taking too long to establish');
           setError(new Error('Connection timeout: Call took too long to establish'));
           setCallState('failed');
-          isCallInProgressRef.current = false;
         }
       }, 30000);
 
@@ -402,7 +390,6 @@ export function useCall(): UseCallReturn {
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
       setCallState('failed');
-      isCallInProgressRef.current = false;
       
       // Cleanup on error
       try {
@@ -482,7 +469,6 @@ export function useCall(): UseCallReturn {
       }
 
       // Reset refs
-      isCallInProgressRef.current = false;
       callMetadataRef.current = undefined;
     };
   }, [localStream, remoteStream]);
