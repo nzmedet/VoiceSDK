@@ -10,6 +10,7 @@ import { CallId, CallState, SignalingMessage, UserId } from '../core/types';
 import { logger } from '../utils/logger';
 import type { RTCSessionDescriptionInit, MediaStream } from '../core/webrtc-types';
 import { useVoiceSDKContext } from '../context/VoiceSDKContext';
+import { mediaDevices } from 'react-native-webrtc'
 import '../core/webrtc-types'; // Import for global type declarations
 
 export interface UseCallReturn {
@@ -48,7 +49,7 @@ export function useCall(): UseCallReturn {
 
   const getLocalStream = useCallback(async (): Promise<MediaStream> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await mediaDevices.getUserMedia({
         audio: true,
         video: false,
       });

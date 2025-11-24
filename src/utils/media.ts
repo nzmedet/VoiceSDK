@@ -1,6 +1,8 @@
+import { mediaDevices } from "react-native-webrtc";
+
 export async function getLocalStream(): Promise<MediaStream> {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const stream = await mediaDevices.getUserMedia({
       audio: true,
       video: false,
     });

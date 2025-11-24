@@ -77,6 +77,7 @@ import {
   getRTCIceCandidate,
 } from './webrtc-types';
 import { logger } from '../utils/logger';
+import { forceSdpOptimization } from '../utils/force-sdp';
 
 export interface CallEngineEvents {
   remoteStream: [stream: MediaStream];
@@ -174,6 +175,9 @@ export class CallEngine extends EventEmitter {
         offerToReceiveAudio: true,
         offerToReceiveVideo: false,
       });
+
+      offer.sdp = forceSdpOptimization(offer.sdp)
+
       await this.pc.setLocalDescription(offer);
       
       if (this.sendSignaling) {
@@ -284,6 +288,7 @@ export class CallEngine extends EventEmitter {
     
     try {
       const offer = await this.pc.createOffer({ iceRestart: true });
+      offer.sdp = forceSdpOptimization(offer.sdp);
       await this.pc.setLocalDescription(offer);
       
       if (this.sendSignaling) {

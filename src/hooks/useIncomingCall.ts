@@ -12,6 +12,7 @@ import type { RTCSessionDescriptionInit, MediaStream } from '../core/webrtc-type
 import type { CallMetadata } from '../index';
 import { useVoiceSDKContext } from '../context/VoiceSDKContext';
 import '../core/webrtc-types'; // Import for global type declarations
+import { mediaDevices } from 'react-native-webrtc';
 
 export interface UseIncomingCallReturn {
   incomingCall: IncomingCall | null;
@@ -26,7 +27,7 @@ export interface UseIncomingCallReturn {
 
 // Helper to get local stream (moved to utils for reuse)
 async function getLocalStream(): Promise<MediaStream> {
-  const stream = await navigator.mediaDevices.getUserMedia({
+  const stream = await mediaDevices.getUserMedia({
     audio: true,
     video: false,
   });
